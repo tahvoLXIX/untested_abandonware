@@ -36,6 +36,8 @@ local TC = {
 
 
         local container = display.newGroup()
+        container.x = display.contentCenterX
+        container.y = display.contentCenterY
         local containerBackground = display.newRect( container, 0, 0,
             containerWidth, containerHeight)
         containerBackground:setFillColor(0, 0.5, 0)
@@ -63,7 +65,6 @@ local TC = {
             local tileX = math.floor(-(containerWidth/2) + (tileWidth/2+tileMarginX/2) + (tileColumn * (tileWidth+tileMarginX)))
             local tileY = math.floor(-(containerHeight/2) + (tileHeight/2+tileMarginY/2) + (tileRow * (tileHeight+tileMarginY)))
 
-            --local rect = display.newRoundedRect( container, tileX,tileY, tileWidth, tileHeight, tileRounding)
             local tileType = math.random(1, #icons_sheet.frames)
             local rect = display.newImageRect(container, imageSheet, tileType, tileWidth, tileHeight)
             rect.x = tileX
@@ -81,6 +82,31 @@ local TC = {
             setmetatable(tile, tileMetaTable)
             tiles[tileNum] = tile
         end
+
+        local drawGrid = false
+        if drawGrid then
+            local grid = display.newGroup()
+            local line
+            for y = -containerHeight/2, containerHeight/2, tileHeight+tileMarginX do
+                line = display.newLine(grid,
+                    -containerWidth/2,y,
+                    containerWidth/2,y)
+                line:setStrokeColor(1,1,0,1)
+
+                line = display.newLine(grid,
+                    y,-containerHeight/2,
+                    y,containerHeight/2)
+                line:setStrokeColor(1,1,0,1)
+            end
+            container:insert(grid)
+        end
+
+        print(utils.dumpContentBounds(container.contentBounds))
+        print(string.format('calculated: tileWidth = %f, tileHeight = %f',
+            tileWidth, tileHeight))
+
+
+
         o.container = container
         o.containerBackground = containerBackground
         o.tiles = tiles
@@ -104,8 +130,16 @@ local TC = {
     end,
 
     touch = function(self, event)
-        local lp = utils.absPointToContentBounds(event.x, event.y, 
-            self.container.contentBounds)
+        local lp = {}
+        local leftBound = self.container.x - self.containerWidth/2
+        local topBound = self.container.y - self.containerHeight/2
+        lp.x = event.x - leftBound
+        lp.y = event.y - topBound
+
+        local clampX = ((self.tileWidth+self.tileMarginX)*self.numHorizontalTiles)-1
+        local clampY = ((self.tileHeight+self.tileMarginY)*self.numVerticalTiles)-1
+        lp.x = utils.clamp(lp.x, 0, clampX)
+        lp.y = utils.clamp(lp.y, 0, clampY)
 
         local xd = event.x - event.xStart
         local yd = event.y - event.yStart
@@ -130,6 +164,8 @@ local TC = {
                 -self.containerHeight/2+self.tileWidth/2, self.containerHeight/2-self.tileHeight/2)
             end
             -- set activeTile on top of whatever else
+            -- reinserting something that already exists in a container
+            -- puts it on top in z-order
             self.container:insert(self.activeTile.rect)
 
         elseif ( event.phase == 'ended' ) then
@@ -212,15 +248,6 @@ local TC = {
             end
         end
 
-    end,
-    tap = function(self, event)
-        local lp = utils.absPointToContentBounds(event.x, event.y, 
-            self.container.contentBounds)
-        local tile = self:tileByLocalPoint(lp)
-        local trc = self:tileRowColumnFromLocalPoint(lp)
-        --print('trc',  trc.tileColumn,trc.tileRow)
-
-    --tileRowColumnFromLocalPoint = function (self, lp)
     end,
 }
 
@@ -367,23 +394,22 @@ function scene:create(event)
     tileContainer.container:addEventListener('tap', tileContainer)
     tileContainer.container:addEventListener('touch', tileContainer)
 
-    tileContainer.container.x = display.contentCenterX
-    tileContainer.container.y = display.contentCenterY
 
     --Runtime:addEventListener('tap', tileContainer)
 
     local mainMenuButton = widget.newButton({
-        x = 50, y = 200,
+        x = 10, y = 200,
         id = 'btnMainMenuButton',
         label = 'Return to\nmain menu',
         labelAlign = 'left', 
         onEvent = mainMenuButtonEvent,
+        shape = 'roundedRect', width=100
     })
 
-    self.view:insert(tileContainer.container)
     self.view:insert(scoreBoard.container)
-    self.view:insert(effectsLayer.container)
     self.view:insert(mainMenuButton)
+    self.view:insert(tileContainer.container)
+    self.view:insert(effectsLayer.container)
     print('scene:create')
 end
 

@@ -12,19 +12,6 @@ dumpContentBounds = function(cb)
         cb.xMin, cb.yMin, cb.xMax, cb.yMax)
 end,
 
-tileDistance = function(tile1, tile2)
-    local xd = math.abs(tile1.column - tile2.column)
-    local yd = math.abs(tile1.row - tile2.row)
-    return math.floor(1)
-end,
-
-absPointToContentBounds = function(px, py, cb)
-    local lp = {
-        x = math.floor(px - cb.xMin),
-        y = math.floor(py - cb.yMin),
-    }
-    return lp
-end,
 clamp = function(v, min, max)
     return (v <= min) and min or ((v > min and v < max ) and v) or max
 end,
@@ -35,15 +22,8 @@ scanTilesForMatches = function(tiles, numHorizontalTiles, numVerticalTiles)
         return tiles[row*numHorizontalTiles+col]
     end
 
-    local leftOf = function(tile) return tileAt(tile.column-1, tile.row) end
-    local rightOf = function(tile) return tileAt(tile.column+1, tile.row)  end
-    local above = function(tile)  return tileAt(tile.column, tile.row - 1) end 
-    local below = function(tile) return tileAt(tile.column, tile.row + 1) end
-
     local tilesToProcess = {}
     local currentTile = nil
-
-
 
     local row
     local col
@@ -115,38 +95,6 @@ scanTilesForMatches = function(tiles, numHorizontalTiles, numVerticalTiles)
         col = col + 1
     until col == numHorizontalTiles
     return tilesToProcess
-end,
-foo = function()
-    local row = 0
-    local block = {}
-    local blockLen = 0
-
-    for col = 1,numHorizontalTiles -1 do
-        local currentTile = tileAt(col, row)
-        local prevTile = leftOf(currentTile)
-
-        if currentTile.tileType == prevTile.tileType then
-            print(string.format('adding\n %s\n %s\nto block', 
-                tostring(currentTile), tostring(prevTile)))
-            block[currentTile.tileNum] = currentTile
-            block[prevTile.tileNum] = prevTile
-            if blockLen == 0 then blockLen = 2 else blockLen = blockLen + 1 end
-        else
-            if blockLen > 2 then
-                tilesToProcess[#tilesToProcess + 1] = block
-                blockLen = 0
-            end
-            block = {}
-        end
-        if blockLen > 2 then
-            tilesToProcess[#tilesToProcess + 1] = block
-            blockLen = 0
-        end
-
-        print(string.format('currentTile = %s', tostring(currentTile)))
-    end
-    return tilesToProcess
-
 end,
 }
 
