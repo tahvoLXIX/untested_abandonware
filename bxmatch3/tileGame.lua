@@ -1,6 +1,4 @@
 -- TODO
--- falling tiles
--- generate somewhere other than the transition.onComplete handler
 -- put scanning for 3 or more tiles in a row/col in a utility function somewhere (fuck lua's module system)
 
 local composer = require('composer')
@@ -291,16 +289,62 @@ local TC = {
                 local scoreForThisTile = 10 * streak
                 self.scoreBoard:setScore(self.scoreBoard:getScore() + scoreForThisTile * scoreMultiplier)
                 self.scoreBoard:update()
-                local outerSelf = self
+
+                self.tiles:removeTile(tile)
                 transition.to(tile.rect, {xScale=3, yScale=5, time=200, transition=easing.continuousLoop, iterations=1, 
                 onComplete = function(_)
-                    print(string.format('now removing %s', tostring(tile)))
+                    --print(string.format('now removing %s', tostring(tile)))
                     local tileRow = tile.row
                     local tileColumn = tile.column
-                    self.tiles:removeTile(tile)
-                    self.tiles:setTileAtColRow(tileColumn, tileRow, self:createTile(math.random(1,10), tileColumn, tileRow))
+                    tile:removeSelf()
+                    --self.tiles:setTileAtColRow(tileColumn, tileRow, self:createTile(math.random(1,10), tileColumn, tileRow))
                 end})
+            end
+            -- tiles processed, figure out new tiles
 
+            -- we check for nil-ity of this later, nil means no transitions needed/doable
+            local tileTransitions = nil
+            if streak > 0 then
+                -- we're currently doing 'tiles drop down from above'
+                for col = 0, self.numHorizontalTiles-1 do
+                    -- start at the row above the last
+                    for row = self.numVerticalTiles-1, 0, -1 do
+                        local maybeTile = self.tiles:getTileAtColRow(col, row)
+                        if maybeTile ~= nil then
+                            -- how far can this tile drop?
+                            local stepsPushed = 0
+                            --print('pushing tile', maybeTile, ' down as far as it will go')
+                            targetRow = row + 1
+
+                            while targetRow <= self.numVerticalTiles-1
+                            and self.tiles:getTileAtColRow(col, targetRow) == nil do
+                                if not stepsPushed then print('pushing tile', maybeTile) end
+                                self.tiles:setTileAtColRow(col, maybeTile.row, nil)
+                                self.tiles:setTileAtColRow(col, targetRow, maybeTile)
+                                maybeTile.row = targetRow
+                                targetRow = targetRow + 1
+                                stepsPushed = stepsPushed + 1
+                            end
+
+                            -- the tile is now in place?
+                            if(stepsPushed > 0) then
+                                transition.to(maybeTile.rect, { delta=true, y=stepsPushed * (self.tileHeight+self.tileMarginY), time=250})
+                            end
+                        end
+                    end
+                    local newTilesToGenerate = 0
+                    while newTilesToGenerate < self.numVerticalTiles-1 and self.tiles:getTileAtColRow(col, newTilesToGenerate) == nil do
+                        newTilesToGenerate = newTilesToGenerate + 1
+                    end
+                    if ( newTilesToGenerate > 0 ) then
+                        for nti = 0, newTilesToGenerate-1 do
+                            local newTile = self:createTile(math.random(1,10), col, nti)
+                            self.tiles:setTileAtColRow(newTile.column, newTile.row, newTile)
+                                transition.from( newTile.rect, {rotation=-180+math.random(0,360), y=-300+(nti*self.tileHeight), time=200})
+                        end
+
+                    end
+                end
             end
         end -- end drag ended
     end,
@@ -416,8 +460,8 @@ EffectLayer = {
 
 SimplifiedTile = {
     removeSelf = function(self)
-        print(string.format('Tile(%s):removeSelf()',
-            tostring(self)))
+        --print(string.format('Tile(%s):removeSelf()',
+        --    tostring(self)))
         display.remove(self.rect)
     end,
     __tostring = function(self)
@@ -479,7 +523,7 @@ Tiles = {
         print(string.format('Tiles:removeTile(%s)',
             tostring(tile)))
         self:setTileAtColRow(tile.column, tile.row, nil)
-        tile:removeSelf()
+        --tile:removeSelf()
     end,
 
 
